@@ -1,21 +1,21 @@
 anchor_id,ip,source,status,country_code,country,city,lat,lon,asn,as_name,looked_up_at_utc
-2219,41.221.208.94,ip-api,ok,ZA,South Africa,Cape Town,-33.9221,18.4231,AS31713 Gateway Communications,,2026-10-15T01:08:00+00:00
-4834,42.1.82.1,ip-api,ok,VN,Vietnam,Da Nang,16.0685,108.2215,AS131429 MOBIFONE Corporation,,2026-10-15T01:08:00+00:00
-4863,77.235.52.48,ip-api,ok,GR,Greece,Athens,37.9838,23.7275,AS200477 EUCLID SERVICES LIMITED,,2026-10-15T01:08:00+00:00
-4071,5.28.0.17,ip-api,ok,HU,Hungary,Budapest,47.4979,19.0402,AS12303 Magyarorszagi Internet Szolgaltatok Tanacsa Tudomanyos Egyesulet,,2026-10-15T01:08:00+00:00
-4512,102.216.193.68,ip-api,ok,NG,Nigeria,Abuja,9.0567,7.4969,AS328585 MegaMore Wireless Broadband Limited,,2026-10-15T01:08:00+00:00
-4246,91.236.1.239,ip-api,ok,SI,Slovenia,Ljubljana,46.0574,14.5052,AS198524 iLOL d.o.o.,,2026-10-15T01:08:00+00:00
-3145,185.6.39.132,ip-api,ok,IE,Ireland,Dublin,53.3498,-6.26031,AS42953 Internet Neutral Exchange Association Company Limited By Guarantee,,2026-10-15T01:08:00+00:00
-2156,185.178.172.32,ip-api,ok,CZ,Czechia,Prague,50.0755,14.4378,AS206548 ZCOM.cz s.r.o,,2026-10-15T01:08:00+00:00
-4680,185.79.2.13,ip-api,ok,AM,Armenia,Vagharshapat,40.1656,44.2937,AS212183 House Net LLC,,2026-10-15T01:08:00+00:00
-4183,131.196.246.22,ip-api,ok,MX,Mexico,Cansahcab,21.158,-89.1021,AS265561 LANTOINTERNET SA DE CV,,2026-10-15T01:08:00+00:00
-2219,41.221.208.94,ipinfo-lite,ok,MZ,Mozambique,,,,AS3491,PCCW Global (HK) Ltd.,2026-10-15T01:08:00+00:00
-4834,42.1.82.1,ipinfo-lite,ok,VN,Vietnam,,,,AS131429,MOBIFONE Corporation,2026-10-15T01:08:00+00:00
-4863,77.235.52.48,ipinfo-lite,ok,GR,Greece,,,,AS200477,EUCLID SERVICES LIMITED,2026-10-15T01:08:00+00:00
-4071,5.28.0.17,ipinfo-lite,ok,HU,Hungary,,,,AS12303,Magyarorszagi Internet Szolgaltatok Tanacsa Tudomanyos Egyesulet,2026-10-15T01:08:00+00:00
-4512,102.216.193.68,ipinfo-lite,ok,NG,Nigeria,,,,AS328585,MegaMore Wireless Broadband Limited,2026-10-15T01:08:00+00:00
-4246,91.236.1.239,ipinfo-lite,ok,SI,Slovenia,,,,AS198524,iLOL d.o.o.,2026-10-15T01:08:01+00:00
-3145,185.6.39.132,ipinfo-lite,ok,IE,Ireland,,,,AS42953,Internet Neutral Exchange Association Company Limited By Guarantee,2026-10-15T01:08:01+00:00
-2156,185.178.172.32,ipinfo-lite,ok,CZ,Czechia,,,,AS206548,ZCOM.cz s.r.o,2026-10-15T01:08:01+00:00
-4680,185.79.2.13,ipinfo-lite,ok,AM,Armenia,,,,AS212183,House Net LLC,2026-10-15T01:08:01+00:00
-4183,131.196.246.22,ipinfo-lite,ok,MX,Mexico,,,,AS265561,LANTOINTERNET SA DE CV,2026-10-15T01:08:01+00:00
+2219,41.221.208.94,ip-api,ok,ZA,South Africa,Cape Town,-33.9221,18.4231,AS31713 Gateway Communications,,2026-10-15T22:17:15+00:00
+4834,42.1.82.1,ip-api,ok,VN,Vietnam,Da Nang,16.0685,108.2215,AS131429 MOBIFONE Corporation,,2026-10-15T22:17:15+00:00
+4863,77.235.52.48,ip-api,ok,GR,Greece,Athens,37.9838,23.7275,AS200477 EUCLID SERVICES LIMITED,,2026-10-15T22:17:15+00:00
+4071,5.28.0.17,ip-api,ok,HU,Hungary,Budapest,47.4979,19.0402,AS12303 Magyarorszagi Internet Szolgaltatok Tanacsa Tudomanyos Egyesulet,,2026-10-15T22:17:15+00:00
+4512,102.216.193.68,ip-api,ok,NG,Nigeria,Abuja,9.0567,7.4969,AS328585 MegaMore Wireless Broadband Limited,,2026-10-15T22:17:15+00:00
+4246,91.236.1.239,ip-api,ok,SI,Slovenia,Ljubljana,46.0574,14.5052,AS198524 iLOL d.o.o.,,2026-10-15T22:17:15+00:00
+3145,185.6.39.132,ip-api,ok,IE,Ireland,Dublin,53.3498,-6.26031,AS42953 Internet Neutral Exchange Association Company Limited By Guarantee,,2026-10-15T22:17:15+00:00
+2156,185.178.172.32,ip-api,ok,CZ,Czechia,Prague,50.0755,14.4378,AS206548 ZCOM.cz s.r.o,,2026-10-15T22:17:15+00:00
+4680,185.79.2.13,ip-api,ok,AM,Armenia,Vagharshapat,40.1656,44.2937,AS212183 House Net LLC,,2026-10-15T22:17:15+00:00
+4183,131.196.246.22,ip-api,ok,MX,Mexico,Cansahcab,21.158,-89.1021,AS265561 LANTOINTERNET SA DE CV,,2026-10-15T22:17:15+00:00
+2219,41.221.208.94,ipinfo-lite,ok,MZ,Mozambique,,,,AS3491,PCCW Global (HK) Ltd.,2026-10-15T22:17:16+00:00
+4834,42.1.82.1,ipinfo-lite,ok,VN,Vietnam,,,,AS131429,MOBIFONE Corporation,2026-10-15T22:17:16+00:00
+4863,77.235.52.48,ipinfo-lite,ok,GR,Greece,,,,AS200477,EUCLID SERVICES LIMITED,2026-10-15T22:17:16+00:00
+4071,5.28.0.17,ipinfo-lite,ok,HU,Hungary,,,,AS12303,Magyarorszagi Internet Szolgaltatok Tanacsa Tudomanyos Egyesulet,2026-10-15T22:17:17+00:00
+4512,102.216.193.68,ipinfo-lite,ok,NG,Nigeria,,,,AS328585,MegaMore Wireless Broadband Limited,2026-10-15T22:17:17+00:00
+4246,91.236.1.239,ipinfo-lite,ok,SI,Slovenia,,,,AS198524,iLOL d.o.o.,2026-10-15T22:17:17+00:00
+3145,185.6.39.132,ipinfo-lite,ok,IE,Ireland,,,,AS42953,Internet Neutral Exchange Association Company Limited By Guarantee,2026-10-15T22:17:17+00:00
+2156,185.178.172.32,ipinfo-lite,ok,CZ,Czechia,,,,AS206548,ZCOM.cz s.r.o,2026-10-15T22:17:18+00:00
+4680,185.79.2.13,ipinfo-lite,ok,AM,Armenia,,,,AS212183,House Net LLC,2026-10-15T22:17:18+00:00
+4183,131.196.246.22,ipinfo-lite,ok,MX,Mexico,,,,AS265561,LANTOINTERNET SA DE CV,2026-10-15T22:17:18+00:00

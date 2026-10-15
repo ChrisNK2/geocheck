@@ -1,0 +1,11 @@
+ip,true_location,min_rtt_ms,method_check,ip-api_claim,ip-api_verdict,ipinfo-lite_claim,ipinfo-lite_verdict
+131.196.246.22,,,,"Cansahcab, MX",untestable (no response),MX,untestable (no response)
+41.221.208.94,"Maputo, MZ",358.0,pass,"Cape Town, ZA",consistent,MZ,consistent
+42.1.82.1,"Hanoi, VN",272.6,pass,"Da Nang, VN",consistent,VN,consistent
+77.235.52.48,"Athínai, GR",135.0,pass,"Athens, GR",consistent,GR,consistent
+5.28.0.17,"Budapest, HU",102.0,pass,"Budapest, HU",consistent,HU,consistent
+102.216.193.68,"Abuja, Nigeria, NG",186.7,pass,"Abuja, NG",consistent,NG,consistent
+91.236.1.239,"Ljubljana, Slovenia, SI",238.5,pass,"Ljubljana, SI",consistent,SI,consistent
+185.6.39.132,"Cork, IE",89.7,pass,"Dublin, IE",consistent,IE,consistent
+185.178.172.32,"Prague, CZ",96.2,pass,"Prague, CZ",consistent,CZ,consistent
+185.79.2.13,"Armavir, AM",146.9,pass,"Vagharshapat, AM",consistent,AM,consistent

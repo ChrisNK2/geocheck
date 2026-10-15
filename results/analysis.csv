@@ -1,0 +1,21 @@
+ip,anchor_id,source,claim,claim_country,min_rtt_ms,max_distance_km,claimed_distance_km,verdict,true_city,true_country,truth_check,error_km,country_correct,vantage_label
+41.221.208.94,2219,ip-api,"Cape Town, ZA",ZA,358.0,35802,12427,consistent,Maputo,MZ,pass,1622,False,"42.34, -71.09"
+42.1.82.1,4834,ip-api,"Da Nang, VN",VN,272.6,27262,13520,consistent,Hanoi,VN,pass,601,True,"42.34, -71.09"
+77.235.52.48,4863,ip-api,"Athens, GR",GR,135.0,13497,7623,consistent,Athínai,GR,pass,16,True,"42.34, -71.09"
+5.28.0.17,4071,ip-api,"Budapest, HU",HU,102.0,10202,6705,consistent,Budapest,HU,pass,3,True,"42.34, -71.09"
+102.216.193.68,4512,ip-api,"Abuja, NG",NG,186.7,18675,8395,consistent,"Abuja, Nigeria",NG,pass,4,True,"42.34, -71.09"
+91.236.1.239,4246,ip-api,"Ljubljana, SI",SI,238.5,23846,6491,consistent,"Ljubljana, Slovenia",SI,pass,0,True,"42.34, -71.09"
+185.6.39.132,3145,ip-api,"Dublin, IE",IE,89.7,8972,4812,consistent,Cork,IE,pass,221,True,Boston
+185.178.172.32,2156,ip-api,"Prague, CZ",CZ,96.2,9624,6270,consistent,Prague,CZ,pass,6,True,"42.34, -71.09"
+185.79.2.13,4680,ip-api,"Vagharshapat, AM",AM,146.9,14686,8775,consistent,Armavir,AM,pass,22,True,"42.34, -71.09"
+131.196.246.22,4183,ip-api,"Cansahcab, MX",MX,,,,untestable (no response),,,,,,
+41.221.208.94,2219,ipinfo-lite,MZ,MZ,358.0,35802,12045,consistent,Maputo,MZ,pass,,True,"42.34, -71.09"
+42.1.82.1,4834,ipinfo-lite,VN,VN,272.6,27262,12702,consistent,Hanoi,VN,pass,,True,"42.34, -71.09"
+77.235.52.48,4863,ipinfo-lite,GR,GR,135.0,13497,7221,consistent,Athínai,GR,pass,,True,"42.34, -71.09"
+5.28.0.17,4071,ipinfo-lite,HU,HU,102.0,10202,6527,consistent,Budapest,HU,pass,,True,"42.34, -71.09"
+102.216.193.68,4512,ipinfo-lite,NG,NG,186.7,18675,7798,consistent,"Abuja, Nigeria",NG,pass,,True,"42.34, -71.09"
+91.236.1.239,4246,ipinfo-lite,SI,SI,238.5,23846,6403,consistent,"Ljubljana, Slovenia",SI,pass,,True,"42.34, -71.09"
+185.6.39.132,3145,ipinfo-lite,IE,IE,89.7,8972,4540,consistent,Cork,IE,pass,,True,Boston
+185.178.172.32,2156,ipinfo-lite,CZ,CZ,96.2,9624,6110,consistent,Prague,CZ,pass,,True,"42.34, -71.09"
+185.79.2.13,4680,ipinfo-lite,AM,AM,146.9,14686,8649,consistent,Armavir,AM,pass,,True,"42.34, -71.09"
+131.196.246.22,4183,ipinfo-lite,MX,MX,,,,untestable (no response),,,,,,
