@@ -1,0 +1,51 @@
+[
+  {
+    "ip": "138.199.35.121",
+    "provider": "Proton VPN",
+    "server": "US-FREE#60",
+    "claimed_city": "",
+    "claimed_country": "US"
+  },
+  {
+    "ip": "146.70.230.146",
+    "provider": "Proton VPN",
+    "server": "US-FREE#1",
+    "claimed_city": "",
+    "claimed_country": "US"
+  },
+  {
+    "ip": "149.88.18.237",
+    "provider": "Proton VPN",
+    "server": "US-FREE#101",
+    "claimed_city": "",
+    "claimed_country": "US"
+  },
+  {
+    "ip": "89.187.185.165",
+    "provider": "Proton VPN",
+    "server": "US-FREE#2",
+    "claimed_city": "",
+    "claimed_country": "US"
+  },
+  {
+    "ip": "146.70.202.5",
+    "provider": "Proton VPN",
+    "server": "US-FREE#58",
+    "claimed_city": "",
+    "claimed_country": "US"
+  },
+  {
+    "ip": "138.199.21.201",
+    "provider": "Proton VPN",
+    "server": "JP-FREE#14",
+    "claimed_city": "Tokyo",
+    "claimed_country": "JP"
+  },
+  {
+    "ip": "135.136.39.70",
+    "provider": "Proton VPN",
+    "server": "CH-FREE#12",
+    "claimed_city": "Zurich",
+    "claimed_country": "CH"
+  }
+]

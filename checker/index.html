@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>geocheck: VPN and location checker</title>
+<style>
+  :root { --bg:#fff; --fg:#1a1a1a; --muted:#666; --line:#ddd; --card:#f6f6f6;
+          --bad:#b91c1c; --warn:#a16207; --good:#15803d; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#111; --fg:#eee; --muted:#999; --line:#333; --card:#1b1b1b;
+            --bad:#f87171; --warn:#facc15; --good:#4ade80; color-scheme: dark; }
+  }
+  body { background:var(--bg); color:var(--fg); font:15px/1.5 -apple-system, system-ui, sans-serif;
+         max-width:760px; margin:2rem auto; padding:0 1rem; }
+  .muted { color:var(--muted); }
+  button { font:inherit; padding:8px 16px; cursor:pointer; }
+  button:disabled { cursor:wait; opacity:.6; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-top:1rem; }
+  #verdict h2 { margin:0 0 4px; }
+  .bad { color:var(--bad); } .warn { color:var(--warn); } .good { color:var(--good); }
+  ul.signals { list-style:none; padding:0; margin:0; }
+  ul.signals li { padding:8px 0; border-bottom:1px solid var(--line); }
+  ul.signals li:last-child { border-bottom:0; }
+  .pts { float:right; font-variant-numeric:tabular-nums; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+<h1>VPN and location checker</h1>
+<p class="muted">Checks whether your connection looks like it really starts where your IP address says.
+Everything runs in your browser. Your IP is looked up through ip.sb, and timing requests go to
+Amazon cloud data centers. This page stores nothing.</p>
+<button id="run">Run check</button>
+<p id="status" class="muted"></p>
+
+<div id="verdict" class="card" hidden></div>
+<div id="details" class="card" hidden></div>
+
+<script>
+// ---------- Settings ----------
+
+// AWS regions with approximate city coordinates (AWS does not publish exact sites).
+const REGIONS = [
+  { id:"us-east-1", city:"Northern Virginia", lat:39.04, lon:-77.49 },
+  { id:"us-east-2", city:"Ohio", lat:39.96, lon:-83.00 },
+  { id:"us-west-1", city:"Northern California", lat:37.34, lon:-121.89 },
+  { id:"us-west-2", city:"Oregon", lat:45.84, lon:-119.70 },
+  { id:"ca-central-1", city:"Montreal", lat:45.50, lon:-73.57 },
+  { id:"sa-east-1", city:"Sao Paulo", lat:-23.55, lon:-46.63 },
+  { id:"eu-west-1", city:"Dublin", lat:53.35, lon:-6.26 },
+  { id:"eu-west-2", city:"London", lat:51.51, lon:-0.13 },
+  { id:"eu-central-1", city:"Frankfurt", lat:50.11, lon:8.68 },
+  { id:"eu-central-2", city:"Zurich", lat:47.38, lon:8.54 },
+  { id:"ap-south-1", city:"Mumbai", lat:19.08, lon:72.88 },
+  { id:"ap-northeast-1", city:"Tokyo", lat:35.68, lon:139.69 },
+  { id:"ap-northeast-2", city:"Seoul", lat:37.57, lon:126.98 },
+  { id:"ap-southeast-1", city:"Singapore", lat:1.35, lon:103.82 },
+  { id:"ap-southeast-2", city:"Sydney", lat:-33.87, lon:151.21 },
+];
+const SAMPLES = 5;      // timed requests per region (after one warm-up)
+const PARALLEL = 4;     // regions measured at the same time
+
+// Network names of VPN companies: direct evidence of a VPN.
+const VPN_PROVIDERS = ["vpn", "proton", "nord", "tefincom", "mullvad", "express", "surfshark",
+  "private internet access", "cyberghost", "ipvanish", "windscribe", "hide.me", "purevpn",
+  "tunnelbear", "vyprvpn", "golden frog", "hotspot shield", "ivpn", "airvpn", "torguard", "astrill"];
+
+// Words that suggest a hosting company or data center: weaker evidence, since
+// these networks host VPN servers but also many other things.
+const HOSTING_WORDS = ["hosting", "host", "server", "datacenter", "data center", "cloud",
+  "datacamp", "cdn77", "m247", "digitalocean", "ovh", "hetzner", "linode", "akamai", "amazon",
+  "aws", "google", "microsoft", "azure", "vultr", "choopa", "leaseweb", "contabo", "psychz",
+  "quadranet", "colocrossing", "zenlayer", "gcore", "g-core", "packethub"];
+
+// Used only if data/baselines.json (made by export_checker_data.py) is missing.
+const DEFAULT_BASELINES = { inflation_p90: 2.5, local_overhead_ms: 20, inflation_source: "default" };
+
+// ---------- Small helpers ----------
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const rad = d => d * Math.PI / 180;
+  const a = Math.sin(rad(lat2 - lat1) / 2) ** 2 +
+            Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lon2 - lon1) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(a));
+}
+
+// Current UTC offset of a timezone, in minutes (e.g. America/New_York -> -240 in summer).
+function tzOffsetMinutes(tz) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "shortOffset" })
+      .formatToParts(new Date());
+    const name = parts.find(p => p.type === "timeZoneName").value;   // "GMT-4", "GMT+5:30", "GMT"
+    const m = name.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+    if (!m) return 0;
+    return (m[1] === "-" ? -1 : 1) * (parseInt(m[2]) * 60 + parseInt(m[3] || "0"));
+  } catch (e) {
+    return null;
+  }
+}
+
+async function loadJson(path, fallback) {
+  try {
+    const r = await fetch(path, { cache: "no-store" });
+    return r.ok ? await r.json() : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+// ---------- Step 1: what the visitor's IP claims ----------
+
+async function lookupIp() {
+  try {
+    const r = await fetch("https://api.ip.sb/geoip", { cache: "no-store" });
+    if (r.ok) {
+      const j = await r.json();
+      return { source: "ip.sb", ip: j.ip, city: j.city || "", country: j.country || "",
+               countryCode: j.country_code || "", lat: Number(j.latitude), lon: Number(j.longitude),
+               timezone: j.timezone || "",
+               org: j.asn_organization || j.organization || j.isp || "", asn: j.asn ? `AS${j.asn}` : "" };
+    }
+  } catch (e) { /* fall through to the backup provider */ }
+  try {
+    const r = await fetch("https://ipinfo.io/json", { cache: "no-store" });
+    if (r.ok) {
+      const j = await r.json();
+      const [lat, lon] = (j.loc || ",").split(",").map(Number);
+      const [asn, ...orgWords] = (j.org || "").split(" ");
+      return { source: "ipinfo.io", ip: j.ip, city: j.city || "", country: j.country || "",
+               countryCode: j.country || "", lat, lon, timezone: j.timezone || "",
+               org: orgWords.join(" "), asn };
+    }
+  } catch (e) { /* both failed */ }
+  return null;
+}
+
+// ---------- Step 2: latency from the browser to each region ----------
+
+async function timeOnce(regionId) {
+  const url = `https://dynamodb.${regionId}.amazonaws.com/ping?x=${Math.random()}`;
+  const start = performance.now();
+  try { await fetch(url, { mode: "no-cors", cache: "no-store" }); }
+  catch (e) { return null; }
+  return performance.now() - start;
+}
+
+async function probeRegion(region) {
+  await timeOnce(region.id);  // warm-up: pays for DNS, TCP, and TLS setup
+  let best = null;
+  for (let i = 0; i < SAMPLES; i++) {
+    const t = await timeOnce(region.id);
+    if (t !== null && (best === null || t < best)) best = t;
+  }
+  return { ...region, rtt: best };
+}
+
+async function probeAll(onProgress) {
+  const results = [];
+  const queue = [...REGIONS];
+  async function worker() {
+    while (queue.length) {
+      results.push(await probeRegion(queue.shift()));
+      onProgress(results.length);
+    }
+  }
+  await Promise.all(Array.from({ length: PARALLEL }, worker));
+  return results.sort((a, b) => (a.rtt ?? Infinity) - (b.rtt ?? Infinity));
+}
+
+// ---------- Step 3: the signals ----------
+// Each returns { name, axis, points, status: "flag" | "ok" | "skip", detail }.
+// axis "vpn":      is this connection coming through a VPN or proxy?
+// axis "location": is the visitor near where their IP says?
+
+function timezoneSignal(ip, browserTz) {
+  const name = "Timezone";
+  if (!ip.timezone) return { name, points: 0, status: "skip", detail: "The IP lookup gave no timezone." };
+  const a = tzOffsetMinutes(browserTz), b = tzOffsetMinutes(ip.timezone);
+  if (a === null || b === null) return { name, points: 0, status: "skip", detail: "Could not compare timezones." };
+  const hours = Math.abs(a - b) / 60;
+  if (hours >= 2) return { name, points: 35, status: "flag",
+    detail: `Your browser is set to ${browserTz}, but your IP's location uses ${ip.timezone} (${hours} hours apart).` };
+  if (hours >= 1) return { name, points: 10, status: "flag",
+    detail: `Your browser (${browserTz}) and your IP's location (${ip.timezone}) are 1 hour apart.` };
+  return { name, points: 0, status: "ok", detail: `Your browser timezone (${browserTz}) matches your IP's location.` };
+}
+
+function latencyFloorSignal(ip, regions, baselines) {
+  const name = "Latency to the nearest data center";
+  const measured = regions.filter(r => r.rtt !== null);
+  if (!Number.isFinite(ip.lat) || !measured.length)
+    return { name, points: 0, status: "skip", detail: "Missing IP coordinates or latency data." };
+  const near = measured.reduce((best, r) =>
+    haversineKm(ip.lat, ip.lon, r.lat, r.lon) < haversineKm(ip.lat, ip.lon, best.lat, best.lon) ? r : best);
+  const dist = haversineKm(ip.lat, ip.lon, near.lat, near.lon);
+  // What a visitor really at the IP's location should see: fixed browser overhead
+  // plus the network path, at the slow end of normal (p90 inflation from geocheck data).
+  const expected = baselines.local_overhead_ms + baselines.inflation_p90 * dist / 100;
+  const excess = near.rtt - expected;
+  const place = ip.city || ip.country || "your IP's location";
+  const far = dist > 3000;  // no data center near the IP: the test is weaker
+  if (excess > 50) return { name, points: far ? 18 : 35, status: "flag",
+    detail: `The data center nearest ${place} (${near.city}) took ${near.rtt.toFixed(0)} ms. ` +
+            `Someone actually in ${place} should see about ${expected.toFixed(0)} ms or less. ` +
+            `The extra ${excess.toFixed(0)} ms suggests your traffic travels from somewhere else first.` };
+  if (excess > 25) return { name, points: far ? 8 : 15, status: "flag",
+    detail: `${near.city} took ${near.rtt.toFixed(0)} ms, somewhat slower than the ~${expected.toFixed(0)} ms ` +
+            `expected for ${place}. Could be a slow connection or a detour.` };
+  return { name, points: 0, status: "ok",
+    detail: `${near.city} took ${near.rtt.toFixed(0)} ms, close to the ~${expected.toFixed(0)} ms expected for someone in ${place}.` };
+}
+
+function fastestRegionSignal(ip, regions) {
+  const name = "Fastest data center location";
+  const measured = regions.filter(r => r.rtt !== null);
+  if (!Number.isFinite(ip.lat) || measured.length < 2)
+    return { name, points: 0, status: "skip", detail: "Not enough data." };
+  const fastest = measured[0];  // regions are sorted by RTT
+  const near = measured.reduce((best, r) =>
+    haversineKm(ip.lat, ip.lon, r.lat, r.lon) < haversineKm(ip.lat, ip.lon, best.lat, best.lon) ? r : best);
+  const apart = haversineKm(fastest.lat, fastest.lon, near.lat, near.lon);
+  if (fastest.id !== near.id && apart > 1500 && near.rtt - fastest.rtt > 15)
+    return { name, points: 20, status: "flag",
+      detail: `The fastest data center was ${fastest.city}, about ${apart.toFixed(0)} km from ${near.city}, ` +
+              `the one nearest your IP's location. Your traffic doesn't seem to start where your IP says.` };
+  return { name, points: 0, status: "ok",
+    detail: `The fastest data center (${fastest.city}) fits your IP's location.` };
+}
+
+function networkSignal(ip) {
+  const name = "Network owner";
+  const org = (ip.org || "").toLowerCase();
+  if (!org) return { name, points: 0, status: "skip", detail: "The IP lookup gave no network name." };
+  if (VPN_PROVIDERS.some(w => org.includes(w))) return { name, points: 45, status: "flag",
+    detail: `Your IP belongs to "${ip.org}", a VPN company.` };
+  if (HOSTING_WORDS.some(w => org.includes(w))) return { name, points: 25, status: "flag",
+    detail: `Your IP belongs to "${ip.org}", a hosting or data center network. Home users rarely ` +
+            `browse from these, but VPN servers often run on them.` };
+  return { name, points: 0, status: "ok",
+    detail: `Your IP belongs to "${ip.org}", which looks like a regular internet provider.` };
+}
+
+function knownExitSignal(ip, exits) {
+  const name = "Known VPN exit";
+  if (!exits.length) return { name, points: 0, status: "skip", detail: "No known-exit list loaded." };
+  const exact = exits.find(e => e.ip === ip.ip);
+  if (exact) return { name, points: 40, status: "flag",
+    detail: `Your IP is a ${exact.provider} exit (${exact.server}) measured by geocheck.` };
+  const block = ip.ip.split(".").slice(0, 3).join(".");
+  const near = ip.ip.includes(".") && exits.find(e => e.ip.split(".").slice(0, 3).join(".") === block);
+  if (near) return { name, points: 20, status: "flag",
+    detail: `Your IP is in the same address block as a known ${near.provider} exit (${near.server}).` };
+  return { name, points: 0, status: "ok", detail: `Not in geocheck's list of ${exits.length} known VPN exits.` };
+}
+
+function axisScore(signals, axis) {
+  return Math.min(100, signals.filter(s => s.axis === axis).reduce((t, s) => t + s.points, 0));
+}
+
+function vpnVerdict(score) {
+  if (score >= 40) return { label: "Detected", cls: "bad" };
+  if (score >= 20) return { label: "Possible", cls: "warn" };
+  return { label: "Not detected", cls: "good" };
+}
+
+function locationVerdict(score) {
+  if (score >= 50) return { label: "Mismatch: probably not where your IP says", cls: "bad" };
+  if (score >= 25) return { label: "Uncertain", cls: "warn" };
+  return { label: "Consistent with your IP's location", cls: "good" };
+}
+
+// The fraud question: is someone hiding where they really are?
+function overallVerdict(vpn, loc) {
+  if (loc.cls === "bad") return { label: "High risk: location is likely disguised", cls: "bad", icon: "⚠️" };
+  if (vpn.cls === "bad" && loc.cls === "good")
+    return { label: "Medium risk: VPN in use, but you appear to be near the claimed location",
+             cls: "warn", icon: "❔" };
+  if (vpn.cls === "bad" || loc.cls === "warn" || vpn.cls === "warn")
+    return { label: "Medium risk: some signals don't add up", cls: "warn", icon: "❔" };
+  return { label: "Low risk: consistent with a real visitor at this location", cls: "good", icon: "✅" };
+}
+
+// ---------- Step 4: show the results ----------
+
+function render(ip, regions, signals, browserTz, baselines) {
+  const vpnScore = axisScore(signals, "vpn");
+  const locScore = axisScore(signals, "location");
+  const vpn = vpnVerdict(vpnScore), loc = locationVerdict(locScore);
+  const overall = overallVerdict(vpn, loc);
+  const icon = { flag: "✗", ok: "✓", skip: "–" };
+  const list = axis => `<ul class="signals">` + signals.filter(s => s.axis === axis).map(s =>
+      `<li><span class="pts">${s.points ? "+" + s.points : "0"}</span>` +
+      `<strong class="${s.status === "flag" ? "bad" : s.status === "ok" ? "good" : "muted"}">${icon[s.status]} ${s.name}</strong><br>` +
+      `<span>${s.detail}</span></li>`).join("") + `</ul>`;
+  const verdict = document.getElementById("verdict");
+  verdict.innerHTML =
+    `<h2 class="${overall.cls}">${overall.icon} ${overall.label}</h2>` +
+    `<p><strong>VPN or proxy:</strong> <span class="${vpn.cls}">${vpn.label}</span> ` +
+    `<span class="muted">(score ${vpnScore}/100)</span><br>` +
+    `<strong>Location:</strong> <span class="${loc.cls}">${loc.label}</span> ` +
+    `<span class="muted">(score ${locScore}/100)</span></p>` +
+    `<h3>VPN signals</h3>${list("vpn")}` +
+    `<h3>Location signals</h3>${list("location")}` +
+    `<p class="muted">VPN: 40+ detected, 20–39 possible. Location: 50+ mismatch, 25–49 uncertain. ` +
+    `A VPN server near you adds almost no delay, so latency alone can't reveal it.</p>`;
+  verdict.hidden = false;
+
+  const details = document.getElementById("details");
+  details.innerHTML =
+    `<h3>What your IP claims (${ip.source})</h3>` +
+    `<p>${ip.ip}: ${[ip.city, ip.country].filter(Boolean).join(", ") || "unknown location"}<br>` +
+    `Network: ${[ip.asn, ip.org].filter(Boolean).join(" ") || "unknown"}<br>` +
+    `IP timezone: ${ip.timezone || "unknown"} · Browser timezone: ${browserTz}</p>` +
+    `<h3>Latency to data centers</h3>` +
+    `<table><thead><tr><th>Region</th><th>City</th><th class="num">Best RTT (ms)</th></tr></thead><tbody>` +
+    regions.map(r => `<tr><td>${r.id}</td><td>${r.city}</td>` +
+      `<td class="num">${r.rtt === null ? "failed" : r.rtt.toFixed(1)}</td></tr>`).join("") +
+    `</tbody></table>` +
+    `<p class="muted">Baseline: path inflation ${baselines.inflation_p90}× (${baselines.inflation_source}), ` +
+    `browser overhead ${baselines.local_overhead_ms} ms.</p>`;
+  details.hidden = false;
+}
+
+document.getElementById("run").addEventListener("click", async () => {
+  const button = document.getElementById("run");
+  const status = document.getElementById("status");
+  button.disabled = true;  // prevents two overlapping runs
+  document.getElementById("verdict").hidden = true;
+  document.getElementById("details").hidden = true;
+
+  try {
+    status.textContent = "Loading geocheck data...";
+    const [baselines, exits] = await Promise.all([
+      loadJson("data/baselines.json", DEFAULT_BASELINES),
+      loadJson("data/known_exits.json", []),
+    ]);
+
+    status.textContent = "Looking up your IP...";
+    const ip = await lookupIp();
+    if (!ip) { status.textContent = "Could not look up your IP. Check your connection and try again."; return; }
+
+    const regions = await probeAll(n => { status.textContent = `Measuring data centers... ${n}/${REGIONS.length}`; });
+    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    const signals = [
+      { axis: "vpn", ...networkSignal(ip) },
+      { axis: "vpn", ...knownExitSignal(ip, exits) },
+      { axis: "location", ...timezoneSignal(ip, browserTz) },
+      { axis: "location", ...latencyFloorSignal(ip, regions, baselines) },
+      { axis: "location", ...fastestRegionSignal(ip, regions) },
+    ];
+    render(ip, regions, signals, browserTz, baselines);
+    status.textContent = "";
+  } finally {
+    button.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

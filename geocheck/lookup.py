@@ -26,6 +26,7 @@ import requests
 
 ROOT = Path(__file__).resolve().parent.parent
 TARGETS_PATH = ROOT / "data" / "targets.csv"
+VPN_TARGETS_PATH = ROOT / "data" / "vpn_targets.csv"
 OUT_PATH = ROOT / "results" / "claims.csv"
 
 IPAPI_URL = "http://ip-api.com/batch"  # free tier is HTTP only
@@ -42,6 +43,25 @@ FIELDS = [
 ]
 
 Row = dict[str, Any]
+
+
+def load_targets() -> list[Row]:
+    """Anchors from targets.csv plus VPN exits from vpn_targets.csv (if present).
+
+    VPN rows get a blank anchor_id. Duplicate IPs are kept only once.
+    """
+    with open(TARGETS_PATH, newline="", encoding="utf-8") as f:
+        rows: list[Row] = list(csv.DictReader(f))
+    if VPN_TARGETS_PATH.exists():
+        with open(VPN_TARGETS_PATH, newline="", encoding="utf-8") as f:
+            rows += [{"ip": v["ip"], "anchor_id": ""} for v in csv.DictReader(f)]
+    seen: set[str] = set()
+    unique: list[Row] = []
+    for r in rows:
+        if r["ip"] not in seen:
+            seen.add(r["ip"])
+            unique.append(r)
+    return unique
 
 
 def now_utc() -> str:
@@ -128,8 +148,7 @@ def main() -> None:
     parser.add_argument("--only", choices=["ip-api", "ipinfo-lite"], help="use one database")
     args = parser.parse_args()
 
-    with open(TARGETS_PATH, newline="", encoding="utf-8") as f:
-        targets: list[Row] = list(csv.DictReader(f))
+    targets = load_targets()
     ips = [t["ip"] for t in targets]
     anchor_ids = {t["ip"]: t.get("anchor_id", "") for t in targets}
     print(f"Looking up {len(ips)} IPs...")

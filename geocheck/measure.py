@@ -1,6 +1,6 @@
 """
 Step 2: Measure the minimum round-trip time (RTT) from this machine to every
-target in data/targets.csv, and save the results to results/measurements.csv.
+target in data/targets.csv and data/vpn_targets.csv, and save the results to results/measurements.csv.
 
 Method: ICMP ping first (minimum of N replies). If ping gets no replies,
 fall back to timing TCP connection setup on port 443, then port 80.
@@ -35,6 +35,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 TARGETS_PATH = ROOT / "data" / "targets.csv"
+VPN_TARGETS_PATH = ROOT / "data" / "vpn_targets.csv"
 OUT_PATH = ROOT / "results" / "measurements.csv"
 
 # Coordinates are rounded to 2 decimals (about 1 km) so your exact
@@ -50,6 +51,25 @@ FIELDS = [
 
 Row = dict[str, Any]
 Vantage = tuple[float, float, str, str]  # lat, lon, label, source
+
+
+def load_targets() -> list[Row]:
+    """Anchors from targets.csv plus VPN exits from vpn_targets.csv (if present).
+
+    VPN rows get a blank anchor_id. Duplicate IPs are kept only once.
+    """
+    with open(TARGETS_PATH, newline="", encoding="utf-8") as f:
+        rows: list[Row] = list(csv.DictReader(f))
+    if VPN_TARGETS_PATH.exists():
+        with open(VPN_TARGETS_PATH, newline="", encoding="utf-8") as f:
+            rows += [{"ip": v["ip"], "anchor_id": ""} for v in csv.DictReader(f)]
+    seen: set[str] = set()
+    unique: list[Row] = []
+    for r in rows:
+        if r["ip"] not in seen:
+            seen.add(r["ip"])
+            unique.append(r)
+    return unique
 
 
 def detect_location() -> tuple[float, float] | None:
@@ -160,8 +180,7 @@ def main() -> None:
     vantage = resolve_vantage(args.lat, args.lon, args.label)
     print(f"Vantage point: {vantage[2]} ({vantage[0]}, {vantage[1]}) via {vantage[3]}")
 
-    with open(TARGETS_PATH, newline="", encoding="utf-8") as f:
-        targets: list[Row] = list(csv.DictReader(f))
+    targets = load_targets()
     print(f"Measuring {len(targets)} targets ({args.count} probes each)...")
 
     results: list[Row] = []

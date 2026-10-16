@@ -1,0 +1,9 @@
+{
+  "inflation_median": 1.91,
+  "inflation_p90": 3.4,
+  "anchors_used": 9,
+  "inflation_source": "measured",
+  "local_overhead_ms": 20.0,
+  "local_overhead_source": "assumed",
+  "generated_at_utc": "2026-10-16T03:06:39+00:00"
+}

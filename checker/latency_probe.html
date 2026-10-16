@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>geocheck: latency probe</title>
+<style>
+  :root { --bg: #ffffff; --fg: #1a1a1a; --muted: #666; --line: #ddd; --accent: #2563eb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111; --fg: #eee; --muted: #999; --line: #333; --accent: #60a5fa; color-scheme: dark; }
+  }
+  body { background: var(--bg); color: var(--fg); font: 15px/1.5 -apple-system, system-ui, sans-serif;
+         max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+  table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  button { font: inherit; padding: 8px 16px; cursor: pointer; }
+  #summary { margin-top: 1rem; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+</style>
+</head>
+<body>
+<h1>Latency probe</h1>
+<p class="muted">Measures how long your browser takes to reach cloud data centers in known cities.
+Nothing is sent anywhere except the timing requests themselves.</p>
+<button id="run">Run test</button>
+<div id="summary" hidden></div>
+<table>
+  <thead><tr><th>Region</th><th>City</th><th class="num">Best RTT (ms)</th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<script>
+// AWS regions and the approximate city each one is in.
+const REGIONS = [
+  ["us-east-1", "Northern Virginia"], ["us-east-2", "Ohio"],
+  ["us-west-1", "Northern California"], ["us-west-2", "Oregon"],
+  ["ca-central-1", "Montreal"], ["sa-east-1", "Sao Paulo"],
+  ["eu-west-1", "Dublin"], ["eu-central-1", "Frankfurt"], ["eu-central-2", "Zurich"],
+  ["ap-northeast-1", "Tokyo"], ["ap-southeast-1", "Singapore"], ["ap-southeast-2", "Sydney"],
+];
+const SAMPLES = 5;
+
+// Time one request. The first request to a host also pays for DNS, TCP, and TLS
+// setup, so we send a warm-up first and keep the fastest of the later samples,
+// which is close to a single network round trip.
+async function timeOnce(region) {
+  const url = `https://dynamodb.${region}.amazonaws.com/ping?x=${Math.random()}`;
+  const start = performance.now();
+  try {
+    await fetch(url, { mode: "no-cors", cache: "no-store" });
+  } catch (e) {
+    return null;
+  }
+  return performance.now() - start;
+}
+
+async function probe(region) {
+  await timeOnce(region);  // warm-up: opens the connection
+  let best = null;
+  for (let i = 0; i < SAMPLES; i++) {
+    const t = await timeOnce(region);
+    if (t !== null && (best === null || t < best)) best = t;
+  }
+  return best;
+}
+
+document.getElementById("run").addEventListener("click", async () => {
+  const rows = document.getElementById("rows");
+  const summary = document.getElementById("summary");
+  rows.innerHTML = "";
+  summary.hidden = true;
+
+  const results = await Promise.all(REGIONS.map(async ([region, city]) => {
+    return { region, city, rtt: await probe(region) };
+  }));
+  results.sort((a, b) => (a.rtt ?? Infinity) - (b.rtt ?? Infinity));
+
+  for (const r of results) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${r.region}</td><td>${r.city}</td>` +
+      `<td class="num">${r.rtt === null ? "failed" : r.rtt.toFixed(1)}</td>`;
+    rows.appendChild(tr);
+  }
+
+  const fastest = results[0];
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  summary.innerHTML =
+    `<strong>Fastest region:</strong> ${fastest.city} (${fastest.region}), ` +
+    `${fastest.rtt?.toFixed(1)} ms<br>` +
+    `<strong>Browser timezone:</strong> ${tz}`;
+  summary.hidden = false;
+});
+</script>
+</body>
+</html>

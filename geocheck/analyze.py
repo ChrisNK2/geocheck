@@ -10,14 +10,19 @@ For every claim (one IP, one database), compare:
 
 If the claim is farther than physics allows, it is "impossible".
 
+Claims come from two databases (results/claims.csv) and, for VPN exit IPs,
+from the VPN provider's advertised location (data/vpn_targets.csv). The
+provider's location is treated as a claim to test, never as ground truth.
+
 Because RIPE anchors have published locations, the script also:
   - validates the method: every TRUE location should pass the test
   - measures how wrong each claim was (km from the true location, and
     whether the country was right)
 
-Inputs:  data/targets.csv, results/measurements.csv, results/claims.csv,
-         data/countries.geojson (Natural Earth country shapes)
-Output:  results/analysis.csv
+Inputs:  data/targets.csv, data/vpn_targets.csv, results/measurements.csv,
+         results/claims.csv, data/countries.geojson (Natural Earth shapes)
+Outputs: results/analysis.csv (one row per claim)
+         results/summary.csv  (one row per IP)
 
 Usage:
     python geocheck/analyze.py
@@ -36,6 +41,7 @@ from shapely.geometry.base import BaseGeometry
 
 ROOT = Path(__file__).resolve().parent.parent
 TARGETS_PATH = ROOT / "data" / "targets.csv"
+VPN_TARGETS_PATH = ROOT / "data" / "vpn_targets.csv"
 COUNTRIES_PATH = ROOT / "data" / "countries.geojson"
 MEASUREMENTS_PATH = ROOT / "results" / "measurements.csv"
 CLAIMS_PATH = ROOT / "results" / "claims.csv"
@@ -49,7 +55,7 @@ FIBER_KM_PER_MS = 200.0  # one-way speed of light in fiber, about 2/3 of c
 MARGIN_KM = 50.0
 
 FIELDS = [
-    "ip", "anchor_id", "source", "claim", "claim_country",
+    "ip", "target_type", "anchor_id", "source", "claim", "claim_country",
     "min_rtt_ms", "max_distance_km", "claimed_distance_km", "verdict",
     "true_city", "true_country", "truth_check", "error_km", "country_correct",
     "vantage_label",
@@ -77,6 +83,25 @@ def load_csv(path: Path) -> list[Row]:
     """Read a CSV file into a list of dicts."""
     with open(path, newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
+
+
+def load_vpn_claims() -> list[Row]:
+    """Turn each VPN provider's advertised location into a claim row."""
+    if not VPN_TARGETS_PATH.exists():
+        return []
+    claims: list[Row] = []
+    for v in load_csv(VPN_TARGETS_PATH):
+        claims.append({
+            "ip": v["ip"],
+            "anchor_id": "",
+            "source": f"{v['provider'].lower().replace(' ', '-')}-advertised",
+            "status": "ok",
+            "country_code": v["claimed_country"],
+            "city": v["claimed_city"],
+            "lat": v["claimed_lat"],
+            "lon": v["claimed_lon"],
+        })
+    return claims
 
 
 def load_countries() -> dict[str, BaseGeometry]:
@@ -139,7 +164,8 @@ def analyze_claim(
         f"{claim['city']}, {claim['country_code']}" if is_city_claim else claim["country_code"]
     )
     out: Row = {
-        "ip": claim["ip"], "anchor_id": claim["anchor_id"], "source": claim["source"],
+        "ip": claim["ip"], "target_type": "anchor" if target is not None else "vpn",
+        "anchor_id": claim["anchor_id"], "source": claim["source"],
         "claim": label, "claim_country": claim["country_code"],
         "min_rtt_ms": "", "max_distance_km": "", "claimed_distance_km": "",
         "verdict": "", "true_city": "", "true_country": "", "truth_check": "",
@@ -183,7 +209,7 @@ def analyze_claim(
     })
 
     # Ground-truth checks, available because anchors have published locations.
-    if target is not None:
+    if target is not None and target.get("lat"):
         t_lat, t_lon = float(target["lat"]), float(target["lon"])
         v_lat, v_lon, _ = vantage
         true_distance = haversine_km(v_lat, v_lon, t_lat, t_lon)
@@ -206,7 +232,9 @@ def write_summary(rows: list[Row]) -> None:
     by_ip: dict[str, Row] = {}
     for r in rows:
         s = by_ip.setdefault(r["ip"], {
-            "ip": r["ip"], "true_location": "", "min_rtt_ms": "", "method_check": "",
+            "ip": r["ip"], "target_type": r["target_type"],
+            "true_location": "unknown (VPN exit)" if r["target_type"] == "vpn" else "",
+            "min_rtt_ms": "", "method_check": "",
         })
         # Fill shared columns from whichever row has them (a failed lookup won't).
         if r["true_city"] and not s["true_location"]:
@@ -228,7 +256,7 @@ def write_summary(rows: list[Row]) -> None:
             return 2
         return 3
 
-    fields = ["ip", "true_location", "min_rtt_ms", "method_check"]
+    fields = ["ip", "target_type", "true_location", "min_rtt_ms", "method_check"]
     fields += [f"{src}_{col}" for src in sources for col in ("claim", "verdict")]
     with open(SUMMARY_PATH, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fields, restval="")
@@ -262,9 +290,10 @@ def main() -> None:
     """Join measurements, claims, and ground truth, then write analysis.csv."""
     targets = {t["ip"]: t for t in load_csv(TARGETS_PATH)}
     rtts_by_ip = best_rtts(load_csv(MEASUREMENTS_PATH))
-    claims = load_csv(CLAIMS_PATH)
+    claims = load_csv(CLAIMS_PATH) + load_vpn_claims()
     countries = load_countries()
-    print(f"Analyzing {len(claims)} claims across {len(targets)} IPs...")
+    n_ips = len({c["ip"] for c in claims})
+    print(f"Analyzing {len(claims)} claims across {n_ips} IPs...")
 
     rows = [
         analyze_claim(c, rtts_by_ip.get(c["ip"], []), targets.get(c["ip"]), countries)
